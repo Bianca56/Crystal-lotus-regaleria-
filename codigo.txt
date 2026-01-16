@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crystal Lotus - Tienda Oficial</title>
+    
+    <!-- ESTILOS (Tailwind CSS) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FUENTES (Google Fonts) -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- LIBRERÍAS (React, ReactDOM, Babel) -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Quicksand', 'sans-serif'], display: ['Fredoka', 'sans-serif'] },
+                    colors: { brand: { 50: '#fdf2f8', 100: '#fce7f3', 500: '#ec4899', 600: '#db2777', 900: '#831843' } }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Quicksand', sans-serif; background-color: #fdf2f8; }
+        .font-display { font-family: 'Fredoka', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .loader { border: 3px solid #fce7f3; border-top: 3px solid #ec4899; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    
+    <!-- PANTALLA DE ERROR DE EMERGENCIA -->
+    <div id="error-box" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; padding:20px; text-align:center;">
+        <h2 style="color:#db2777; font-size:24px; font-weight:bold; margin-top:50px;">Ups, algo pasó 😿</h2>
+        <p id="error-msg" style="color:#666; margin:20px 0;">Error desconocido</p>
+        <button onclick="localStorage.clear(); window.location.reload();" style="background:#db2777; color:white; border:none; padding:15px 30px; border-radius:10px; font-weight:bold; font-size:16px;">🔄 Reiniciar Tienda (Borrar Datos)</button>
+    </div>
+
+    <!-- APP ROOT -->
+    <div id="root">
+        <div style="min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <div class="loader"></div>
+            <h2 class="text-xl font-bold text-brand-600 font-display">Cargando Crystal Lotus...</h2>
+        </div>
+    </div>
+
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            document.getElementById('error-box').style.display = 'block';
+            document.getElementById('error-msg').innerText = message + " (Línea: " + lineno + ")";
+            document.getElementById('root').style.display = 'none';
+        };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- ICONOS ---
+        const Icons = {
+            Bag: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>,
+            User: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+            Lock: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+            Unlock: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>,
+            Plus: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>,
+            X: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 18 18"/></svg>,
+            Trash: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>,
+            Edit: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>,
+            Search: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>,
+            Settings: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            Instagram: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="20" x="2" y="2" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/></svg>,
+            Whatsapp: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16.5 16.5c-1-1-2.5-1-4-2-2.5-1.5-3.5-4-4-6-1-1.5-1-3-1-4 .5-1 2-1 3-1 1 0 2 .5 2 1.5 0 1-.5 1.5-1 2 .5 1.5 2 3 4 4 .5.5 1 1.5 1.5 1.5 1-.5 1.5 1 1.5s0 2-1 2.5z"/></svg>,
+            CreditCard: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>,
+            Megaphone: () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+        };
+
+        // --- PRECIOS CONFIGURADOS ---
+        const InitialProducts = [
+            {
+                id: 1,
+                name: "Cuaderno Personalizable",
+                basePrice: 7000,
+                description: "Diseño único a tu medida. Elige la tapa y el interior que más te guste.",
+                image: "https://images.unsplash.com/photo-1544816155-12df9643f363?w=500",
+                category: "Cuadernos",
+                options: [
+                    { name: "Tipo de Tapa", values: [{label: "Blanda", add: 0}, {label: "Rígida", add: 2000}] },
+                    { name: "Cantidad de Hojas", values: [{label: "48 Hojas", add: 0}, {label: "60 Hojas", add: 2100}, {label: "80 Hojas", add: 2800}] },
+                    { name: "Tipo de Hoja", values: [{label: "Rayada", add: 0}, {label: "Cuadriculada", add: 0}, {label: "Lisa", add: 0}] }
+                ],
+                inStock: true
+            },
+            {
+                id: 2,
+                name: "Anotador Personalizable",
+                basePrice: 2500,
+                description: "Pequeño, práctico y hermoso. Llévalo a todos lados.",
+                image: "https://images.unsplash.com/photo-1595188882375-72c0506e78ba?w=500",
+                category: "Anotadores",
+                options: [
+                    { name: "Tipo de Tapa", values: [{label: "Blanda", add: 0}, {label: "Rígida", add: 1500}] },
+                    { name: "Cantidad de Hojas", values: [{label: "50 Hojas", add: 0}, {label: "80 Hojas", add: 1400}] },
+                    { name: "Tipo de Hoja", values: [{label: "Rayada", add: 0}, {label: "Cuadriculada", add: 0}, {label: "Lisa", add: 0}] }
+                ],
+                inStock: true
+            },
+            {
+                id: 3,
+                name: "Agenda Anual",
+                basePrice: 15000,
+                description: "Organiza tu año completo. Disponibles versiones especiales para profesionales.",
+                image: "https://images.unsplash.com/photo-1506784365847-bbad939e9335?w=500",
+                category: "Agendas",
+                options: [
+                    { name: "Edición", values: [{label: "Clásica 365", add: 0}, {label: "Pediatría (+$5000)", add: 5000}, {label: "Manicuría (+$5000)", add: 5000}] }
+                ],
+                inStock: true
+            },
+            {
+                id: 4,
+                name: "Photocards K-Pop",
+                basePrice: 800,
+                description: "Calidad premium doble faz. Colecciónalos todos.",
+                image: "https://images.unsplash.com/photo-1612152843869-7d8719c8d002?w=500",
+                category: "Fanmade",
+                options: [
+                    { name: "Pack", values: [{label: "1 Unidad", add: 0}, {label: "Pack x5 ($3.500)", add: 2700}, {label: "Pack x10 ($6.800)", add: 6000}, {label: "Pack x20 ($12.000)", add: 11200}] }
+                ],
+                inStock: true
+            },
+            {
+                id: 5,
+                name: "Impresión Fotos",
+                basePrice: 1000,
+                description: "Tus recuerdos en papel de alta calidad.",
+                image: "https://images.unsplash.com/photo-1552168324-d612d77725e3?w=500",
+                category: "Fotos",
+                options: [
+                    { name: "Medida", values: [{label: "10x14 cm", add: 0}, {label: "14x20 cm", add: 1000}, {label: "20x28 cm", add: 3000}] }
+                ],
+                inStock: true
+            },
+            {
+                id: 6,
+                name: "Pack Stickers Comunes",
+                basePrice: 2000,
+                description: "Stickers decorativos de alta calidad (Comunes).",
+                image: "https://images.unsplash.com/photo-1572375992501-4b0892d50c69?w=500",
+                category: "Stickers",
+                options: [
+                    { name: "Cantidad", values: [{label: "x10 ($2.000)", add: 0}, {label: "x20 ($3.600)", add: 1600}, {label: "x30 ($5.100)", add: 3100}, {label: "x40 ($6.400)", add: 4400}] }
+                ],
+                inStock: true
+            },
+            {
+                id: 7,
+                name: "Pack Stickers Waterproof",
+                basePrice: 2500,
+                description: "Stickers resistentes al agua para termos y notebooks.",
+                image: "https://images.unsplash.com/photo-1611566026373-c6c85447dbdc?w=500",
+                category: "Stickers",
+                options: [
+                    { name: "Cantidad", values: [{label: "x5 ($2.500)", add: 0}, {label: "x10 ($5.000)", add: 2500}, {label: "x20 ($9.000)", add: 6500}, {label: "x30 ($12.750)", add: 10250}, {label: "x40 ($16.000)", add: 13500}] }
+                ],
+                inStock: true
+            },
+            { id: 8, name: "Libro Colorear", basePrice: 4500, description: "20 ilustraciones.", image: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=500", category: "Arte", inStock: true },
+            { id: 9, name: "Botella 750ml", basePrice: 3500, description: "Plástico reutilizable.", image: "https://images.unsplash.com/photo-1602143407151-011141950038?w=500", category: "Accesorios", inStock: true }
+        ];
+
+        const Config = { name: "Crystal Lotus", sub: "Regalería", phone: "5491125573160", ig: "@crystal_lotus.nb" };
+        const formatPrice = (p) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(p);
+
+        // --- COMPONENTES ---
+
+        const Hero = () => (
+            <div className="relative h-64 md:h-80 w-full overflow-hidden mb-8 shadow-lg">
+                <img src="https://images.unsplash.com/photo-1493934558415-9d19f0b2b4d2?w=1600" className="w-full h-full object-cover brightness-75" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-white text-center p-4">
+                    <h1 className="text-4xl md:text-5xl font-display font-bold mb-2 drop-shadow-md">Crystal Lotus</h1>
+                    <p className="text-lg md:text-xl font-light">Diseños únicos para organizar tu vida</p>
+                </div>
+            </div>
+        );
+
+        const OptionsModal = ({ isOpen, onClose, product, onConfirm }) => {
+            if (!isOpen || !product) return null;
+            
+            const [selections, setSelections] = useState(() => {
+                const initial = {};
+                if (product.options) {
+                    product.options.forEach(opt => {
+                        if(opt.values && opt.values.length > 0) initial[opt.name] = opt.values[0];
+                    });
+                }
+                return initial;
+            });
+
+            const totalPrice = (product.basePrice || 0) + Object.values(selections).reduce((sum, sel) => sum + (sel && sel.add ? sel.add : 0), 0);
+
+            const handleAdd = () => {
+                const variantText = Object.values(selections).map(val => val ? val.label : '').join(', ');
+                onConfirm({ ...product, price: totalPrice, variantDetails: variantText, uniqueId: Date.now() });
+            };
+
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                        <button onClick={onClose} className="absolute top-4 right-4 z-10 bg-white/50 p-1 rounded-full"><Icons.X/></button>
+                        <div className="h-40 bg-gray-100 relative"><img src={product.image} className="w-full h-full object-cover" /><div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6"><h2 className="text-white font-bold text-2xl font-display">{product.name}</h2></div></div>
+                        <div className="p-6">
+                            {product.options ? (
+                                <div className="space-y-4 mb-6">
+                                    {product.options.map((opt, i) => (
+                                        <div key={i}>
+                                            <label className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 block">{opt.name}</label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {opt.values.map((val, j) => {
+                                                    const isSelected = selections[opt.name] && selections[opt.name].label === val.label;
+                                                    return <button key={j} onClick={() => setSelections({...selections, [opt.name]: val})} className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${isSelected ? 'bg-brand-600 text-white border-brand-600 shadow-md' : 'bg-white text-gray-600 border-gray-200'}`}>{val.label} {val.add > 0 && <span className="opacity-70 text-xs ml-1">+${val.add}</span>}</button>;
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <p className="text-gray-500 mb-6">{product.description}</p>}
+                            <div className="flex items-center justify-between border-t pt-4">
+                                <div><p className="text-xs text-gray-400 font-bold uppercase">Precio Final</p><p className="text-3xl font-display font-bold text-brand-600">{formatPrice(totalPrice)}</p></div>
+                                <button onClick={handleAdd} className="bg-gray-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-black transition-colors flex items-center gap-2">Agregar <Icons.Plus/></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ProductItem = ({ p, admin, onAddClick, onEdit, onDelete, onPromote }) => (
+            <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all overflow-hidden border border-brand-100 flex flex-col h-full transform hover:-translate-y-1">
+                <div className="relative h-56 bg-gray-100">
+                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                    {p.inStock && <span className="absolute top-2 left-2 bg-white/90 text-brand-600 text-[10px] font-bold px-2 py-1 rounded-full shadow-sm">DISPONIBLE</span>}
+                </div>
+                <div className="p-4 flex flex-col flex-grow">
+                    <span className="text-[10px] uppercase font-bold text-brand-400 mb-1">{p.category}</span>
+                    <h3 className="font-bold text-gray-800 text-lg leading-tight mb-1">{p.name}</h3>
+                    <p className="text-gray-500 text-xs mb-3 flex-grow line-clamp-2">{p.description}</p>
+                    <div className="flex items-center justify-between mt-auto border-t border-gray-100 pt-3">
+                        <div><span className="text-xs text-gray-400 font-bold block">Desde</span><span className="font-bold text-xl text-brand-600 font-display">{formatPrice(p.basePrice)}</span></div>
+                        {admin ? (
+                            <div className="flex gap-2">
+                                <button onClick={() => onPromote(p)} className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Icons.Megaphone/></button>
+                                <button onClick={() => onEdit(p)} className="p-2 bg-yellow-50 text-yellow-600 rounded-lg"><Icons.Edit/></button>
+                                <button onClick={() => onDelete(p.id)} className="p-2 bg-red-50 text-red-600 rounded-lg"><Icons.Trash/></button>
+                            </div>
+                        ) : (
+                            <button onClick={() => onAddClick(p)} disabled={!p.inStock} className={`px-4 py-2 rounded-xl font-bold text-xs text-white transition-colors ${p.inStock ? 'bg-brand-600 hover:bg-brand-900 shadow-md shadow-brand-200' : 'bg-gray-300'}`}>
+                                {p.inStock ? (p.options ? 'ELEGIR' : 'AGREGAR') : 'AGOTADO'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+
+        const CartModal = ({ isOpen, onClose, cart, remove, total, checkout }) => {
+            const [paymentMethod, setPaymentMethod] = useState('Transferencia');
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-sm">
+                    <div className="bg-white w-full max-w-md h-full flex flex-col shadow-2xl">
+                        <div className="p-4 border-b flex justify-between items-center bg-brand-50">
+                            <h2 className="font-bold text-lg flex items-center gap-2"><Icons.Bag/> Tu Pedido</h2>
+                            <button onClick={onClose}><Icons.X/></button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                            {cart.length === 0 ? <div className="text-center text-gray-400 mt-20"><Icons.Bag/><p>Aún no elegiste nada</p></div> : 
+                                cart.map((item, i) => (
+                                    <div key={i} className="flex gap-3 border p-3 rounded-xl bg-white shadow-sm">
+                                        <img src={item.image} className="w-16 h-16 rounded-lg object-cover" />
+                                        <div className="flex-1">
+                                            <p className="font-bold text-gray-800 text-sm">{item.name}</p>
+                                            {item.variantDetails && <p className="text-xs text-gray-500 bg-gray-100 inline-block px-1 rounded mt-1">{item.variantDetails}</p>}
+                                            <p className="text-brand-600 text-sm font-bold mt-1">{formatPrice(item.price)}</p>
+                                        </div>
+                                        <button onClick={() => remove(i)} className="text-red-400 hover:text-red-600"><Icons.Trash/></button>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                        <div className="p-4 bg-gray-50 border-t">
+                            <h3 className="font-bold text-sm mb-2 text-gray-700">Método de Pago:</h3>
+                            <div className="space-y-2 mb-4">
+                                <label className="flex items-center gap-2 p-2 border rounded-lg bg-white cursor-pointer">
+                                    <input type="radio" name="payment" value="Transferencia" checked={paymentMethod === 'Transferencia'} onChange={(e) => setPaymentMethod(e.target.value)} className="text-brand-600 focus:ring-brand-500"/>
+                                    <span className="text-sm">Transferencia / Efectivo</span>
+                                </label>
+                                <label className="flex items-center gap-2 p-2 border rounded-lg bg-white cursor-pointer">
+                                    <input type="radio" name="payment" value="Tarjeta" checked={paymentMethod === 'Tarjeta'} onChange={(e) => setPaymentMethod(e.target.value)} className="text-brand-600 focus:ring-brand-500"/>
+                                    <span className="text-sm flex items-center gap-1"><Icons.CreditCard/> Tarjeta Crédito/Débito</span>
+                                </label>
+                                {paymentMethod === 'Tarjeta' && <p className="text-[10px] text-brand-600 ml-6">Te enviaremos el link de pago seguro por WhatsApp.</p>}
+                            </div>
+                            <div className="flex justify-between font-bold text-xl mb-4 text-gray-800"><span>Total:</span><span>{formatPrice(total)}</span></div>
+                            <button onClick={() => checkout(paymentMethod)} disabled={cart.length===0} className="w-full bg-brand-600 text-white py-3 rounded-xl font-bold hover:bg-brand-800 transition-colors shadow-lg flex items-center justify-center gap-2"><Icons.Whatsapp/> Enviar Pedido</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const AuthModal = ({ isOpen, onClose, onLogin, usersDb }) => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [form, setForm] = useState({ name: '', email: '', password: '' });
+            if (!isOpen) return null;
+            const submit = () => {
+                if (!form.email || !form.password) return alert("Faltan datos");
+                if (isLogin) {
+                    const u = usersDb.find(u => u.email === form.email && u.password === form.password);
+                    if (u) onLogin(u); else alert("Datos incorrectos");
+                } else {
+                    if (!form.name) return alert("Nombre requerido");
+                    onLogin({ ...form, history: [] });
+                }
+            };
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl w-full max-w-sm p-6 relative shadow-2xl">
+                        <button onClick={onClose} className="absolute top-3 right-3 text-gray-400"><Icons.X/></button>
+                        <h2 className="text-xl font-bold text-center mb-6 text-gray-800">{isLogin ? '¡Hola de nuevo!' : 'Crear Cuenta'}</h2>
+                        <div className="space-y-4">
+                            {!isLogin && <input placeholder="Tu Nombre" className="w-full border-2 border-gray-100 bg-gray-50 p-3 rounded-xl outline-none focus:border-brand-300 transition-colors" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} />}
+                            <input placeholder="Email" className="w-full border-2 border-gray-100 bg-gray-50 p-3 rounded-xl outline-none focus:border-brand-300 transition-colors" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} />
+                            <input type="password" placeholder="Contraseña" className="w-full border-2 border-gray-100 bg-gray-50 p-3 rounded-xl outline-none focus:border-brand-300 transition-colors" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} />
+                            <button onClick={submit} className="w-full bg-brand-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-brand-800 transition-all">{isLogin ? 'Ingresar' : 'Registrarme'}</button>
+                            <p className="text-center text-xs text-gray-400 cursor-pointer hover:text-brand-600" onClick={()=>setIsLogin(!isLogin)}>{isLogin ? 'No tengo cuenta' : 'Ya tengo cuenta'}</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const ConfigModal = ({ isOpen, onClose, config, onSave }) => {
+            if (!isOpen) return null;
+            const [form, setForm] = useState(config);
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+                        <h2 className="text-xl font-bold mb-4">Configuración</h2>
+                        <div className="space-y-3">
+                            <input className="w-full border p-2 rounded" placeholder="Nombre Tienda" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} />
+                            <input className="w-full border p-2 rounded" placeholder="Subtítulo" value={form.sub} onChange={e=>setForm({...form,sub:e.target.value})} />
+                            <input className="w-full border p-2 rounded" placeholder="WhatsApp (549...)" value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} />
+                            <button onClick={()=>{onSave(form); onClose()}} className="w-full bg-brand-600 text-white py-2 rounded font-bold">Guardar</button>
+                            <button onClick={onClose} className="w-full text-gray-500 py-2">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const MarketingModal = ({ isOpen, onClose, product, config }) => {
+            if (!isOpen || !product) return null;
+            const txt = `✨ ${product.name}\n💰 ${formatPrice(product.basePrice)}\n${product.description}\n👉 ${window.location.href}`;
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl w-full max-w-sm p-6 relative shadow-2xl text-center">
+                        <button onClick={onClose} className="absolute top-3 right-3 text-gray-400"><Icons.X/></button>
+                        <h2 className="text-xl font-bold mb-4 text-brand-600">Marketing</h2>
+                        <img src={product.image} className="w-24 h-24 object-cover rounded-lg mx-auto mb-4" />
+                        <textarea readOnly className="w-full border rounded p-2 text-xs h-24 mb-3" value={txt}></textarea>
+                        <button onClick={()=>{navigator.clipboard.writeText(txt); alert("Copiado")}} className="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold w-full mb-2">Copiar Texto</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const ProductFormModal = ({ isOpen, onClose, product, onSave }) => {
+            if (!isOpen) return null;
+            const [form, setForm] = useState(product || { name: '', basePrice: '', description: '', image: '', category: '', inStock: true });
+            useEffect(() => { if (product) setForm(product); else setForm({ name: '', basePrice: '', description: '', image: '', category: '', inStock: true }); }, [product]);
+            const handleSubmit = () => { onSave({ ...form, basePrice: parseFloat(form.basePrice) }); };
+            return (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+                        <h2 className="text-xl font-bold mb-4">{product ? 'Editar' : 'Nuevo'} Producto</h2>
+                        <div className="space-y-3">
+                            <input className="w-full border p-2 rounded" placeholder="Nombre" value={form.name} onChange={e=>setForm({...form,name:e.target.value})} />
+                            <input className="w-full border p-2 rounded" type="number" placeholder="Precio Base" value={form.basePrice} onChange={e=>setForm({...form,basePrice:e.target.value})} />
+                            <input className="w-full border p-2 rounded" placeholder="Categoría" value={form.category} onChange={e=>setForm({...form,category:e.target.value})} />
+                            <textarea className="w-full border p-2 rounded" placeholder="Descripción" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} />
+                            <input className="w-full border p-2 rounded" placeholder="URL Imagen" value={form.image} onChange={e=>setForm({...form,image:e.target.value})} />
+                            <div className="flex items-center gap-2"><input type="checkbox" checked={form.inStock} onChange={e=>setForm({...form,inStock:e.target.checked})} /> <label>En Stock</label></div>
+                            <button onClick={handleSubmit} className="w-full bg-brand-600 text-white py-2 rounded font-bold">Guardar</button>
+                            <button onClick={onClose} className="w-full text-gray-500 py-2">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [products, setProducts] = useState(InitialProducts);
+            const [config, setConfig] = useState(Config);
+            const [admin, setAdmin] = useState(false);
+            const [cart, setCart] = useState([]);
+            const [isCartOpen, setIsCartOpen] = useState(false);
+            const [user, setUser] = useState(null);
+            const [usersDb, setUsersDb] = useState([]);
+            const [isAuthOpen, setIsAuthOpen] = useState(false);
+            const [search, setSearch] = useState("");
+            
+            const [selectedProductForOptions, setSelectedProductForOptions] = useState(null);
+            const [isConfigOpen, setIsConfigOpen] = useState(false);
+            const [isProductFormOpen, setIsProductFormOpen] = useState(false);
+            const [editingProduct, setEditingProduct] = useState(null);
+            const [marketingProduct, setMarketingProduct] = useState(null);
+
+            useEffect(() => {
+                const ls = (k) => localStorage.getItem(k);
+                if (ls('cl_p_v18')) setProducts(JSON.parse(ls('cl_p_v18')));
+                if (ls('cl_c_v18')) setConfig(JSON.parse(ls('cl_c_v18')));
+                if (ls('cl_u_db')) setUsersDb(JSON.parse(ls('cl_u_db')));
+                if (ls('cl_curr')) setUser(JSON.parse(ls('cl_curr')));
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('cl_p_v18', JSON.stringify(products));
+                localStorage.setItem('cl_c_v18', JSON.stringify(config));
+                localStorage.setItem('cl_u_db', JSON.stringify(usersDb));
+                user ? localStorage.setItem('cl_curr', JSON.stringify(user)) : localStorage.removeItem('cl_curr');
+            }, [products, config, usersDb, user]);
+
+            const toggleAdmin = () => {
+                if (admin) setAdmin(false);
+                else {
+                    const p = prompt("PIN:");
+                    if (p === "5656") setAdmin(true); else alert("Error");
+                }
+            };
+
+            const handleProductClick = (product) => {
+                if (product.options) {
+                    setSelectedProductForOptions(product);
+                } else {
+                    setCart([...cart, {...product, variantDetails: '', price: product.basePrice}]);
+                    setIsCartOpen(true);
+                }
+            };
+
+            const handleOptionConfirm = (customizedProduct) => {
+                setCart([...cart, customizedProduct]);
+                setSelectedProductForOptions(null);
+                setIsCartOpen(true);
+            };
+
+            const checkout = (paymentMethod) => {
+                const total = cart.reduce((s,i)=>s+i.price,0);
+                let msg = `Hola *${config.name}*!\nQuiero este pedido:\n\n`;
+                cart.forEach(i => {
+                    msg += `🔹 *${i.name}*`;
+                    if(i.variantDetails) msg += `\n   (${i.variantDetails})`;
+                    msg += `\n   💲 ${formatPrice(i.price)}\n`;
+                });
+                msg += `\n💰 *TOTAL: ${formatPrice(total)}*`;
+                msg += `\n💳 Pago: ${paymentMethod}`;
+                if(user) msg += `\n👤 Cliente: ${user.name}`;
+                msg += `\n🚚 Envío: Correo Argentino`;
+                window.open(`https://wa.me/${config.phone}?text=${encodeURIComponent(msg)}`, '_blank');
+                setCart([]); setIsCartOpen(false);
+            };
+
+            const handleLogin = (u) => {
+                const exists = usersDb.find(ex => ex.email === u.email);
+                if (!exists) setUsersDb([...usersDb, u]);
+                setUser(u); setIsAuthOpen(false);
+            };
+
+            const handleDelete = (id) => {
+                if(confirm("¿Eliminar?")) setProducts(products.filter(p=>p.id!==id));
+            };
+
+            const handleSaveProduct = (prodData) => {
+                if (prodData.id) setProducts(products.map(p => p.id === prodData.id ? {...p, ...prodData} : p));
+                else setProducts([...products, { ...prodData, id: Date.now() }]);
+                setIsProductFormOpen(false);
+            };
+
+            return (
+                <div className="pb-20">
+                    <div className="bg-brand-600 text-white text-[10px] font-bold text-center py-2 tracking-widest">🚚 AVISO DE ENVÍOS POR CORREO ARGENTINO A PARTIR DE $30.000</div>
+                    <nav className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-brand-100 z-40 px-4 py-3 flex justify-between items-center shadow-sm">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-brand-100 p-2 rounded-lg text-brand-600 font-bold font-display text-xl">CL</div>
+                            <div><h1 className="font-display font-bold text-gray-800 leading-none">{config.name}</h1><p className="text-[10px] font-bold text-brand-500 uppercase tracking-widest">{config.sub}</p></div>
+                        </div>
+                        <div className="flex gap-3">
+                            {!admin && <button onClick={()=>setIsCartOpen(true)} className="relative p-2 text-gray-600"><Icons.Bag/><span className="absolute top-0 right-0 bg-brand-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">{cart.length}</span></button>}
+                            {!admin && <button onClick={()=>setIsAuthOpen(true)} className="p-2 text-gray-600"><Icons.User/></button>}
+                            <button onClick={toggleAdmin} className={`p-2 rounded-full ${admin?'bg-brand-500 text-white':'text-gray-400'}`}>{admin?<Icons.Unlock/>:<Icons.Lock/>}</button>
+                            {admin && <button onClick={()=>setIsConfigOpen(true)} className="p-2 text-gray-600"><Icons.Settings/></button>}
+                        </div>
+                    </nav>
+
+                    <Hero />
+
+                    <div className="max-w-6xl mx-auto px-4">
+                        <div className="mb-8 relative">
+                            <span className="absolute left-3 top-3 text-gray-400"><Icons.Search/></span>
+                            <input className="w-full pl-10 pr-4 py-3 rounded-xl border-none shadow-sm focus:ring-2 focus:ring-brand-200 bg-white" placeholder="Buscar producto..." value={search} onChange={e=>setSearch(e.target.value)} />
+                        </div>
+
+                        {admin && (
+                            <button onClick={()=>{setEditingProduct(null); setIsProductFormOpen(true)}} className="w-full mb-8 bg-brand-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg"><Icons.Plus/> Nuevo Producto</button>
+                        )}
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())).map(p => (
+                                <ProductItem 
+                                    key={p.id} 
+                                    p={p} 
+                                    admin={admin} 
+                                    onAddClick={handleProductClick} 
+                                    onDelete={handleDelete}
+                                    onEdit={(prod)=>{setEditingProduct(prod); setIsProductFormOpen(true)}}
+                                    onPromote={(prod)=>setMarketingProduct(prod)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    <footer className="mt-12 bg-gray-900 text-white py-10 px-4 text-center">
+                        <h2 className="font-display font-bold text-xl mb-4">{config.name}</h2>
+                        <div className="flex justify-center gap-6 mb-6">
+                            <a href={`https://instagram.com/${config.ig.replace('@','')}`} target="_blank" className="hover:text-brand-500 transition-colors flex items-center gap-2"><Icons.Instagram/> Instagram</a>
+                            <a href={`https://wa.me/${config.phone}`} target="_blank" className="hover:text-green-500 transition-colors flex items-center gap-2"><Icons.Whatsapp/> WhatsApp</a>
+                        </div>
+                        <p className="text-gray-400 text-sm mb-6">Hecho con amor.</p>
+                    </footer>
+
+                    <OptionsModal isOpen={!!selectedProductForOptions} onClose={()=>setSelectedProductForOptions(null)} product={selectedProductForOptions} onConfirm={handleOptionConfirm} />
+                    <CartModal isOpen={isCartOpen} onClose={()=>setIsCartOpen(false)} cart={cart} remove={(i)=>{const c=[...cart];c.splice(i,1);setCart(c)}} total={cart.reduce((s,i)=>s+i.price,0)} checkout={checkout}/>
+                    <AuthModal isOpen={isAuthOpen} onClose={()=>setIsAuthOpen(false)} onLogin={handleLogin} usersDb={usersDb} />
+                    <ConfigModal isOpen={isConfigOpen} onClose={()=>setIsConfigOpen(false)} config={config} onSave={setConfig} />
+                    <ProductFormModal isOpen={isProductFormOpen} onClose={()=>setIsProductFormOpen(false)} product={editingProduct} onSave={handleSaveProduct} />
+                    <MarketingModal isOpen={!!marketingProduct} onClose={()=>setMarketingProduct(null)} product={marketingProduct} config={config} />
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
+
+
